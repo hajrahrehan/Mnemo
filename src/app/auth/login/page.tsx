@@ -3,6 +3,8 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { motion } from "framer-motion";
+import { Sparkles } from "lucide-react";
 import { Button } from "@/components/button";
 import { createClient } from "@/lib/supabase/client";
 
@@ -49,24 +51,41 @@ function LoginForm() {
   }
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-sm flex-col justify-center px-6 py-16">
-      <h1 className="text-2xl font-semibold">
-        {mode === "login" ? "Welcome back" : "Create your account"}
-      </h1>
-      <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-        {mode === "login"
-          ? "Log in to access your decks."
-          : "Sign up to start turning PDFs into flashcards."}
-      </p>
+    <main className="relative mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-sm flex-col justify-center px-6 py-16">
+      <div className="pointer-events-none absolute left-1/2 top-10 -z-10 h-[280px] w-[280px] -translate-x-1/2 brand-blob opacity-60" />
 
-      <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-3">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        <div className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-xl brand-bg text-white shadow-lg shadow-indigo-500/30">
+          <Sparkles className="h-5 w-5" />
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {mode === "login" ? "Welcome back" : "Create your account"}
+        </h1>
+        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+          {mode === "login"
+            ? "Log in to access your decks."
+            : "Sign up to start turning PDFs into flashcards."}
+        </p>
+      </motion.div>
+
+      <motion.form
+        onSubmit={handleSubmit}
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.08 }}
+        className="mt-6 flex flex-col gap-3"
+      >
         <input
           type="email"
           required
           placeholder="you@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="h-10 rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900"
+          className="h-11 rounded-lg border border-zinc-200 bg-white px-3 text-sm outline-none transition-colors focus:border-indigo-400 dark:border-zinc-800 dark:bg-zinc-900"
         />
         <input
           type="password"
@@ -75,9 +94,13 @@ function LoginForm() {
           placeholder="Password (min 6 chars)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="h-10 rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900"
+          className="h-11 rounded-lg border border-zinc-200 bg-white px-3 text-sm outline-none transition-colors focus:border-indigo-400 dark:border-zinc-800 dark:bg-zinc-900"
         />
-        <Button type="submit" disabled={loading}>
+        <Button
+          type="submit"
+          disabled={loading}
+          className="h-11 shadow-lg shadow-indigo-500/20"
+        >
           {loading ? "Please wait…" : mode === "login" ? "Log in" : "Sign up"}
         </Button>
         {error && (
@@ -90,7 +113,7 @@ function LoginForm() {
             {notice}
           </p>
         )}
-      </form>
+      </motion.form>
 
       <button
         type="button"
@@ -99,7 +122,7 @@ function LoginForm() {
           setError(null);
           setNotice(null);
         }}
-        className="mt-6 text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
+        className="mt-6 text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:hover:text-zinc-200"
       >
         {mode === "login"
           ? "Need an account? Sign up"
@@ -108,7 +131,7 @@ function LoginForm() {
 
       <Link
         href="/"
-        className="mt-2 text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
+        className="mt-2 text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:hover:text-zinc-200"
       >
         ← Back to home
       </Link>
