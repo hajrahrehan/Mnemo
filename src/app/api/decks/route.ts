@@ -68,12 +68,32 @@ export async function POST(request: Request) {
   try {
     pages = await extractPagesFromPdf(buffer);
   } catch (e) {
-    console.error("pdf parse", e);
+    console.error("pdf parse failed", e);
+    await supabase.storage.from("pdfs").remove([storagePath]);
+    await supabase.from("decks").delete().eq("id", deck.id);
+    const detail = e instanceof Error ? e.message : String(e);
     return NextResponse.json(
-      { error: "could not read pdf", deck_id: deck.id },
+      {
+        error: "could not read pdf — the file may be corrupted, password-protected, or exported from a tool that emits non-standard PDF (e.g. some Word-to-PDF exporters). Try a different PDF.",
+        detail,
+      },
       { status: 422 },
     );
   }
+
+  const totalText = pages.reduce((n, p) => n + p.text.length, 0);
+  if (totalText < 200) {
+    await supabase.storage.from("pdfs").remove([storagePath]);
+    await supabase.from("decks").delete().eq("id", deck.id);
+    return NextResponse.json(
+      {
+        error:
+          "no readable text found in this pdf — it may be a scanned image. Mnemo v1 doesn't OCR yet.",
+      },
+      { status: 422 },
+    );
+  }
+
   const chunks = chunkPages(pages).slice(0, MAX_CHUNKS);
 
   // 4. Generate flashcards for each chunk in parallel.
