@@ -87,7 +87,7 @@ export default function UploadPage() {
       >
         <h1 className="text-3xl font-semibold">Upload a PDF</h1>
         <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-          Pick a textbook chapter (PDF, up to 10&nbsp;MB). Mnemo will split it by
+          Pick a textbook chapter (PDF, up to 4&nbsp;MB). Mnemo will split it by
           passage and generate flashcards.
         </p>
       </motion.div>

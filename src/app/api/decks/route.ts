@@ -6,7 +6,9 @@ import { generateFlashcards } from "@/lib/flashcards";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const MAX_BYTES = 10 * 1024 * 1024;  // 10 MB
+// Vercel serverless function body limit is ~4.5 MB on the Hobby tier.
+// Keep some headroom for the multipart overhead.
+const MAX_BYTES = 4 * 1024 * 1024;
 const MAX_CHUNKS = 6;                 // cap LLM calls per upload for v1
 
 export async function POST(request: Request) {
@@ -29,7 +31,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "title is required" }, { status: 400 });
   }
   if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: "file too large (max 10 MB)" }, { status: 413 });
+    return NextResponse.json({ error: "file too large (max 4 MB on the free tier)" }, { status: 413 });
   }
   if (!file.name.toLowerCase().endsWith(".pdf")) {
     return NextResponse.json({ error: "pdf files only" }, { status: 400 });
