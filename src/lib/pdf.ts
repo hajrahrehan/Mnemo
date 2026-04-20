@@ -5,11 +5,14 @@ export interface PdfPage {
   text: string;
 }
 
-/** Extract text per page from a PDF buffer. */
+/** Extract text per page from a PDF buffer. Always copies input so that
+ *  callers can still use the original buffer afterwards (some downstream
+ *  consumers — e.g. Supabase Storage — may detach the ArrayBuffer). */
 export async function extractPagesFromPdf(
   file: Buffer | Uint8Array,
 ): Promise<PdfPage[]> {
-  const data = file instanceof Uint8Array ? file : new Uint8Array(file);
+  const data = new Uint8Array(file.byteLength);
+  data.set(file);
   const parser = new PDFParse({ data });
   try {
     const result = await parser.getText();

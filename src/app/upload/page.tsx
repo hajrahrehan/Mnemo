@@ -26,11 +26,16 @@ export default function UploadPage() {
     body.set("title", title.trim());
 
     const res = await fetch("/api/decks", { method: "POST", body });
-    const json: { deck_id?: string; error?: string } = await res.json();
+    const json: { deck_id?: string; error?: string; detail?: string } =
+      await res.json();
 
     if (!res.ok) {
       setSubmitting(false);
-      setError(json.error ?? "upload failed");
+      setError(
+        json.detail
+          ? `${json.error ?? "upload failed"}\n\nParser detail: ${json.detail}`
+          : json.error ?? "upload failed",
+      );
       return;
     }
 
@@ -105,7 +110,7 @@ export default function UploadPage() {
         </Button>
 
         {error && (
-          <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">
+          <p className="whitespace-pre-wrap rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">
             {error}
           </p>
         )}

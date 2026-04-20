@@ -37,44 +37,19 @@ export async function POST(request: Request) {
 
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  // 1. Insert the deck row first so we get an ID to use in the storage path.
-  const { data: deck, error: deckErr } = await supabase
-    .from("decks")
-    .insert({ user_id: user.id, title })
-    .select("id")
-    .single();
-  if (deckErr || !deck) {
-    console.error("deck insert", deckErr);
-    return NextResponse.json({ error: "failed to create deck" }, { status: 500 });
-  }
-
-  // 2. Upload PDF to the user's folder in the 'pdfs' bucket.
-  const storagePath = `${user.id}/${deck.id}.pdf`;
-  const { error: uploadErr } = await supabase.storage
-    .from("pdfs")
-    .upload(storagePath, buffer, {
-      contentType: "application/pdf",
-      upsert: false,
-    });
-  if (uploadErr) {
-    console.error("upload", uploadErr);
-    await supabase.from("decks").delete().eq("id", deck.id);
-    return NextResponse.json({ error: "failed to store pdf" }, { status: 500 });
-  }
-  await supabase.from("decks").update({ source_pdf_path: storagePath }).eq("id", deck.id);
-
-  // 3. Extract text per page and chunk into passages.
+  // 1. Parse PDF FIRST. If this fails, we haven't touched the DB or storage.
+  //    (Uploading the buffer to Supabase first can detach its ArrayBuffer,
+  //    which then breaks pdf-parse silently.)
   let pages;
   try {
     pages = await extractPagesFromPdf(buffer);
   } catch (e) {
     console.error("pdf parse failed", e);
-    await supabase.storage.from("pdfs").remove([storagePath]);
-    await supabase.from("decks").delete().eq("id", deck.id);
     const detail = e instanceof Error ? e.message : String(e);
     return NextResponse.json(
       {
-        error: "could not read pdf — the file may be corrupted, password-protected, or exported from a tool that emits non-standard PDF (e.g. some Word-to-PDF exporters). Try a different PDF.",
+        error:
+          "could not read pdf — the file may be corrupted, password-protected, or exported from a tool that emits non-standard PDF.",
         detail,
       },
       { status: 422 },
@@ -83,8 +58,6 @@ export async function POST(request: Request) {
 
   const totalText = pages.reduce((n, p) => n + p.text.length, 0);
   if (totalText < 200) {
-    await supabase.storage.from("pdfs").remove([storagePath]);
-    await supabase.from("decks").delete().eq("id", deck.id);
     return NextResponse.json(
       {
         error:
@@ -96,7 +69,7 @@ export async function POST(request: Request) {
 
   const chunks = chunkPages(pages).slice(0, MAX_CHUNKS);
 
-  // 4. Generate flashcards for each chunk in parallel.
+  // 2. Generate flashcards from each chunk in parallel.
   const cardLists = await Promise.all(
     chunks.map((c) =>
       generateFlashcards({ passage: c.text, sourcePage: c.startPage }).catch((e) => {
@@ -109,15 +82,33 @@ export async function POST(request: Request) {
 
   if (cards.length === 0) {
     return NextResponse.json(
-      {
-        error: "no flashcards generated — pdf may be scanned/images only",
-        deck_id: deck.id,
-      },
+      { error: "no flashcards generated — try a different PDF or check server logs" },
       { status: 422 },
     );
   }
 
-  // 5. Insert cards.
+  // 3. Now that generation succeeded, create the deck + upload PDF + insert cards.
+  const { data: deck, error: deckErr } = await supabase
+    .from("decks")
+    .insert({ user_id: user.id, title })
+    .select("id")
+    .single();
+  if (deckErr || !deck) {
+    console.error("deck insert", deckErr);
+    return NextResponse.json({ error: "failed to create deck" }, { status: 500 });
+  }
+
+  const storagePath = `${user.id}/${deck.id}.pdf`;
+  const { error: uploadErr } = await supabase.storage
+    .from("pdfs")
+    .upload(storagePath, buffer, { contentType: "application/pdf", upsert: false });
+  if (uploadErr) {
+    console.error("upload", uploadErr);
+    // Non-fatal — we can still save cards without the original PDF.
+  } else {
+    await supabase.from("decks").update({ source_pdf_path: storagePath }).eq("id", deck.id);
+  }
+
   const { error: cardErr } = await supabase.from("cards").insert(
     cards.map((c) => ({
       deck_id: deck.id,
@@ -129,6 +120,7 @@ export async function POST(request: Request) {
   );
   if (cardErr) {
     console.error("cards insert", cardErr);
+    await supabase.from("decks").delete().eq("id", deck.id);
     return NextResponse.json({ error: "failed to save cards" }, { status: 500 });
   }
 
