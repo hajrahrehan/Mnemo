@@ -7,7 +7,7 @@ and schedules them using the **SM-2 spaced-repetition algorithm** — the same
 algorithm Anki uses. Upload a chapter, pick the sections you care about, and
 Mnemo generates a mix of definition, concept, comparison and cloze-deletion
 cards with page references. Review them daily, and Mnemo adapts the schedule
-to your memory.
+to your memory. Deployed on Vercel. 
 
 Built with **Next.js**, **Supabase**, and **Groq's Llama 3.3** for fast,
 structured flashcard generation.
